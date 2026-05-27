@@ -1,0 +1,62 @@
+FRONTEND DOCUMENTATION (FOR FUTURE BUILD)
+📌 Purpose
+
+The frontend will serve as the user interaction layer for:
+
+registration/login
+profile creation
+viewing scholarships
+viewing matches
+saving opportunities
+🧩 2.1 Pages Structure
+1. Home Page
+Search scholarships
+View featured opportunities
+2. Authentication Pages
+Register
+Login
+3. User Dashboard
+user profile summary
+matched scholarships list
+match scores display
+4. Scholarship Details Page
+full scholarship information
+apply link
+deadline tracking
+🎨 2.2 UI Components
+Navbar
+Scholarship Cards
+Match Score Badge
+Filters (country, deadline, provider)
+Search bar
+Profile editor
+🔄 2.3 Frontend Data Flow
+User Input Profile
+        ↓
+POST /api/register or /login
+        ↓
+GET /api/match
+        ↓
+Render ranked scholarships
+📡 2.4 API Integration
+
+Frontend communicates with backend via REST:
+
+JSON requests
+JWT authentication headers
+Axios or Fetch API
+📈 2.5 Future Improvements (Frontend)
+Real-time filtering
+Saved scholarships
+Notification system
+Profile strength analyzer
+Better UX scoring display
+🧠 3. WHAT YOU JUST ACHIEVED (IMPORTANT)
+
+Your system is now:
+
+✔ Fully working backend system
+✔ Multi-source scraper
+✔ AI-based matching engine (TF-IDF)
+✔ Scheduled automation
+✔ Database-driven architecture
