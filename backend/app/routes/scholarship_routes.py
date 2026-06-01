@@ -45,6 +45,7 @@ def get_scholarships():
             "degree_level": s.degree_level,
             "eligibility": s.eligibility,
             "description": s.description,
+            "deadline": str(s.deadline),
         })
 
     return jsonify(result), 200
