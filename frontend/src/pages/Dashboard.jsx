@@ -95,7 +95,7 @@ export default function Dashboard({ user, onNav, toast }) {
           {topM.length === 0 ? (
             <EmptyState msg="No matches yet. Update your profile and run matching." />
           ) : topM.map((m, i) => (
-            <div key={m.match_id} style={{ ...S.matchRow, animationDelay: `${i * 50}ms` }}>
+            <div key={m.id || `${m.title}-${i}`} style={{ ...S.matchRow, animationDelay: `${i * 50}ms` }}>
               <span style={S.rank}>#{i + 1}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={S.matchTitle}>{m.scholarship.title}</div>
