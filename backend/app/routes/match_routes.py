@@ -28,6 +28,7 @@ def match_scholarships():
         scholarship = scholarships[match["scholarship_index"]]
 
         results.append({
+            "id": scholarship.id,
             "title": scholarship.title,
             "provider": scholarship.provider,
             "country": scholarship.country,
