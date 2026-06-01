@@ -20,9 +20,9 @@ export default function MatchesPage({ toast }) {
   async function rerun() {
     setRunning(true)
     try {
-      const d = await api.runMatch()
-      toast(`${d.match_count} matches found`, 'success')
-      await load()
+      const results = await api.runMatch()
+      toast(`${results.length} matches found`, 'success')
+      setMatches(results)
     } catch (e) { toast(e.message, 'error') }
     finally { setRunning(false) }
   }
