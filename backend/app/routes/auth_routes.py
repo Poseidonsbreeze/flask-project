@@ -113,4 +113,5 @@ def update_profile_text():
     user.profile_text = profile_text
     db.session.commit()
 
+    return jsonify({
     }), 200
