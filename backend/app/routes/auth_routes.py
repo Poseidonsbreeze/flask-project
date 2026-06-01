@@ -96,4 +96,5 @@ def profile():
     }), 200
 
 
+@auth_bp.route("/profile/text", methods=["PUT"])
     }), 200
