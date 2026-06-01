@@ -34,10 +34,9 @@ export default function Dashboard({ user, onNav, toast }) {
   async function runMatch() {
     setMatching(true)
     try {
-      const d = await api.runMatch()
-      toast(`${d.message} — ${d.match_count} matches found`, 'success')
-      const m = await api.getMatches()
-      setMatches(m)
+      const results = await api.runMatch()
+      toast(`${results.length} matches found`, 'success')
+      setMatches(results)
     } catch (e) { toast(e.message, 'error') }
     finally { setMatching(false) }
   }
