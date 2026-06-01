@@ -43,6 +43,7 @@ def get_scholarships():
             "provider": s.provider,
             "country": s.country,
             "degree_level": s.degree_level,
+            "eligibility": s.eligibility,
             "description": s.description,
         })
 
