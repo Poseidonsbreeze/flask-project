@@ -33,6 +33,7 @@ def match_scholarships():
             "provider": scholarship.provider,
             "country": scholarship.country,
             "degree_level": scholarship.degree_level,
+            "eligibility": scholarship.eligibility,
             "deadline": str(scholarship.deadline),
             "score": round(match["score"], 3)
         })
