@@ -98,8 +98,8 @@ export default function Dashboard({ user, onNav, toast }) {
             <div key={m.id || `${m.title}-${i}`} style={{ ...S.matchRow, animationDelay: `${i * 50}ms` }}>
               <span style={S.rank}>#{i + 1}</span>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={S.matchTitle}>{m.scholarship.title}</div>
-                <div style={S.matchSub}>{m.scholarship.country}</div>
+                <div style={S.matchTitle}>{m.title}</div>
+                <div style={S.matchSub}>{m.country}</div>
               </div>
               <span style={{ ...S.score, color: m.similarity_score >= 80 ? 'var(--green)' : m.similarity_score >= 60 ? 'var(--gold)' : 'var(--blue)' }}>
                 {Math.round(m.similarity_score)}%
