@@ -112,4 +112,5 @@ def update_profile_text():
 
     user.profile_text = profile_text
     db.session.commit()
+
     }), 200
