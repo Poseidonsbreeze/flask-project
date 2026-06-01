@@ -107,4 +107,5 @@ def update_profile_text():
         return jsonify({"error": "Profile text is required"}), 400
 
     user = User.query.get(user_id)
+    if not user:
     }), 200
