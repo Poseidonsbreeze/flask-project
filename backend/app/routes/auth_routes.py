@@ -109,4 +109,5 @@ def update_profile_text():
     user = User.query.get(user_id)
     if not user:
         return jsonify({"error": "User not found"}), 404
+
     }), 200
