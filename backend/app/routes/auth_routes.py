@@ -114,4 +114,5 @@ def update_profile_text():
     db.session.commit()
 
     return jsonify({
+        "message": "Profile updated successfully",
     }), 200
