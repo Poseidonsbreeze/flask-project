@@ -94,3 +94,4 @@ def profile():
         "profile_text": user.profile_text,
         "created_at": user.created_at
     }), 200
+    }), 200
