@@ -101,8 +101,8 @@ export default function Dashboard({ user, onNav, toast }) {
                 <div style={S.matchTitle}>{m.title}</div>
                 <div style={S.matchSub}>{m.country}</div>
               </div>
-              <span style={{ ...S.score, color: m.similarity_score >= 80 ? 'var(--green)' : m.similarity_score >= 60 ? 'var(--gold)' : 'var(--blue)' }}>
-                {Math.round(m.similarity_score)}%
+              <span style={{ ...S.score, color: m.score >= 80 ? 'var(--green)' : m.score >= 60 ? 'var(--gold)' : 'var(--blue)' }}>
+                {Math.round(m.score)}%
               </span>
             </div>
           ))}
