@@ -73,7 +73,7 @@ export default function Dashboard({ user, onNav, toast }) {
           { label: 'Scholarships',   val: scholarships.length, Icon: GraduationCap, color: 'var(--green)', page: 'scholarships' },
           { label: 'My Matches',     val: matches.length,      Icon: Sparkles,      color: 'var(--blue)',  page: 'matches' },
           { label: 'Urgent (30d)',   val: urgent.length,       Icon: Clock,         color: 'var(--red)',   page: 'scholarships' },
-          { label: 'Top Score',      val: topM[0] ? `${Math.round(topM[0].similarity_score)}%` : '—', Icon: TrendingUp, color: 'var(--gold)', page: 'matches' },
+          { label: 'Top Score',      val: topM[0] ? `${Math.round(topM[0].score)}%` : '—', Icon: TrendingUp, color: 'var(--gold)', page: 'matches' },
         ].map(({ label, val, Icon, color, page }, i) => (
           <div key={label} style={{ ...S.stat, animationDelay: `${i * 60}ms` }} onClick={() => onNav(page)}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
