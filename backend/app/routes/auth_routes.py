@@ -98,4 +98,5 @@ def profile():
 
 @auth_bp.route("/profile/text", methods=["PUT"])
 @jwt_required()
+def update_profile_text():
     }), 200
