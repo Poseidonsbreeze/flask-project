@@ -81,7 +81,7 @@ const S = {
     padding: '18px 20px', display: 'flex', flexDirection: 'column', gap: 12,
     animation: 'fadeUp .4s both', transition: 'all var(--ease)',
   },
-  top: { display: 'flex', gap: 14, alignItems: 'flex-start' },
+  top: { display: 'flex', gap: 14, alignItems: 'flex-start', flexWrap: 'wrap' },
   meta: { flex: 1, minWidth: 0 },
   title: { fontSize: 14, fontWeight: 700, color: 'var(--ink)', lineHeight: 1.35, marginBottom: 3,
     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' },
@@ -94,7 +94,7 @@ const S = {
   },
   desc: { fontSize: 12.5, color: 'var(--ink-2)', lineHeight: 1.6,
     display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' },
-  foot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingTop: 10, borderTop: '1px solid var(--border)' },
+  foot: { display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, paddingTop: 10, borderTop: '1px solid var(--border)' },
   urgentBadge: {
     fontSize: 9, fontWeight: 700, padding: '2px 7px', borderRadius: 99,
     background: 'var(--red-dim)', color: 'var(--red)', border: '1px solid rgba(248,113,113,.2)',
