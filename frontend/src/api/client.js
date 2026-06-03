@@ -28,6 +28,6 @@ export const api = {
   },
   getScholarship: (id) => request(`/scholarships/${id}`),
   getMatches: () => request('/match'),
-  runMatch:   () => request('/match'),
+  runMatch:   () => request('/scrape/run'),
   seedData:   () => request('/scrape/run'),
 }
