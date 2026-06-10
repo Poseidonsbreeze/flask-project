@@ -10,7 +10,8 @@ HEADERS = {
 
 # 1. OPPORTUNITY DESK
 def scrape_opportunity_desk():
-    url = "https://opportunitydesk.org/category/scholarships/"
+    # switched to Scholarship Positions — high-volume listings
+    url = "https://scholarship-positions.com/category/scholarships/"
 
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
@@ -36,7 +37,7 @@ def scrape_opportunity_desk():
 
             db.session.add(Scholarship(
                 title=title,
-                provider="Opportunity Desk",
+                provider="Scholarship Positions",
                 application_link=link,
                 description=title
             ))
@@ -54,7 +55,8 @@ def scrape_opportunity_desk():
 # 2. SCHOLARSHIPS.COM
 # (light scrape - limited HTML access)
 def scrape_scholarships_com():
-    url = "https://www.scholarships.com/financial-aid/college-scholarships/scholarships-by-type"
+    # switched to Scholars4Dev — many international scholarship posts
+    url = "https://www.scholars4dev.com/category/scholarships/"
 
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
@@ -71,7 +73,7 @@ def scrape_scholarships_com():
             if not title or not href:
                 continue
 
-            full_link = href if href.startswith("http") else "https://www.scholarships.com" + href
+            full_link = href if href.startswith("http") else "https://www.scholars4dev.com" + href
 
             exists = Scholarship.query.filter_by(application_link=full_link).first()
             if exists:
@@ -79,7 +81,7 @@ def scrape_scholarships_com():
 
             db.session.add(Scholarship(
                 title=title,
-                provider="Scholarships.com",
+                provider="Scholars4Dev",
                 application_link=full_link,
                 description=title
             ))
@@ -95,7 +97,8 @@ def scrape_scholarships_com():
 
 # 3. SCHOLARSHIP PORTAL (basic)
 def scrape_scholarship_portal():
-    url = "https://www.scholarshipportal.com/scholarships"
+    # switched to InternationalStudent scholarships listing
+    url = "https://www.internationalstudent.com/scholarships/"
 
     try:
         res = requests.get(url, headers=HEADERS, timeout=10)
@@ -112,7 +115,7 @@ def scrape_scholarship_portal():
             if not title or not link:
                 continue
 
-            full_link = link if link.startswith("http") else "https://www.scholarshipportal.com" + link
+            full_link = link if link.startswith("http") else "https://www.internationalstudent.com" + link
 
             exists = Scholarship.query.filter_by(application_link=full_link).first()
             if exists:
@@ -120,7 +123,7 @@ def scrape_scholarship_portal():
 
             db.session.add(Scholarship(
                 title=title,
-                provider="ScholarshipPortal",
+                provider="International Student",
                 application_link=full_link,
                 description=title
             ))

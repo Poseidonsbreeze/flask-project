@@ -1,4 +1,5 @@
 from flask import Blueprint, jsonify
+import math
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from app.models import User, Scholarship
 from app.matching.match_engine import compute_matches
@@ -27,6 +28,10 @@ def match_scholarships():
     for match in matches[:10]:  # top 10
         scholarship = scholarships[match["scholarship_index"]]
 
+        # ensure score is a finite number before sending
+        raw_score = match.get("score", 0.0)
+        safe_score = raw_score if (isinstance(raw_score, (int, float)) and math.isfinite(raw_score)) else 0.0
+
         results.append({
             "id": scholarship.id,
             "title": scholarship.title,
@@ -37,7 +42,7 @@ def match_scholarships():
             "description": scholarship.description,
             "deadline": str(scholarship.deadline),
             "application_link": scholarship.application_link,
-            "score": round(match["score"], 3)
+            "score": round(safe_score, 3)
         })
 
     return jsonify(results), 200
