@@ -45,6 +45,52 @@ Frontend communicates with backend via REST:
 JSON requests
 JWT authentication headers
 Axios or Fetch API
+
+📌 2.4.1 Archive Scholarship Feature
+
+Endpoint: PATCH /api/scholarships/<id>/archive
+Request format:
+  No request body required
+  Example: PATCH http://localhost:5000/api/scholarships/5/archive
+Expected response:
+  { "message": "Scholarship archived successfully" }
+  Status code: 200
+Frontend behavior after success:
+  - Scholarship is soft-archived (is_archived = True)
+  - It disappears from the scholarship list page (GET /api/scholarships now excludes archived items)
+  - Archived scholarships are accessible via GET /api/scholarships/archived
+  - The frontend should show a success indicator (e.g., toast notification)
+  - Works on both: (a) Scholarship list page, (b) Match results page
+
+Unarchive:
+Endpoint: PATCH /api/scholarships/<id>/unarchive
+Request format:
+  No request body required
+  Example: PATCH http://localhost:5000/api/scholarships/5/unarchive
+Expected response:
+  { "message": "Scholarship restored successfully" }
+  Status code: 200
+Frontend behavior after success:
+  - Scholarship reappears on the main list
+  - Removed from archived list
+  - Show success indicator
+
+📌 2.4.2 Delete Scholarship Feature
+
+Endpoint: DELETE /api/scholarships/<id>
+Request format:
+  No request body required
+  Example: DELETE http://localhost:5000/api/scholarships/5
+Expected response:
+  { "message": "Scholarship deleted successfully" }
+  Status code: 200
+Frontend behavior after success:
+  - Scholarship is soft-deleted (deleted_at timestamp is set, record not removed from DB)
+  - It disappears from all lists (main list, archived list, match results)
+  - Permanently hidden from the user
+  - Show success indicator
+  - Works on both: (a) Scholarship list page, (b) Match results page
+
 📈 2.5 Future Improvements (Frontend)
 Real-time filtering
 Saved scholarships

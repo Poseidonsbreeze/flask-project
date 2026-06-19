@@ -27,7 +27,10 @@ export const api = {
     return request(`/scholarships${qs ? '?' + qs : ''}`)
   },
   getScholarship: (id) => request(`/scholarships/${id}`),
-  getMatches: () => request('/match'),
-  runMatch:   () => request('/scrape/run'),
-  seedData:   () => request('/scrape/run'),
+  getArchivedScholarships: () => request('/scholarships/archived'),
+  archiveScholarship: (id) => request(`/scholarships/${id}/archive`, { method: 'PATCH' }),
+  unarchiveScholarship: (id) => request(`/scholarships/${id}/unarchive`, { method: 'PATCH' }),
+  deleteScholarship: (id) => request(`/scholarships/${id}`, { method: 'DELETE' }),
+  getMatches:  () => request('/match'),
+  runScrape:   () => request('/scrape/run'),
 }

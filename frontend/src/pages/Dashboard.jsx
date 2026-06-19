@@ -23,7 +23,7 @@ export default function Dashboard({ user, onNav, toast }) {
   async function seed() {
     setSeeding(true)
     try {
-      const d = await api.seedData()
+      const d = await api.runScrape()
       toast(`${d.message} — ${d.total_added} new scholarships added`, 'success')
       const s = await api.getScholarships()
       setScholarships(s)
@@ -34,7 +34,7 @@ export default function Dashboard({ user, onNav, toast }) {
   async function runMatch() {
     setMatching(true)
     try {
-      const results = await api.runMatch()
+      const results = await api.getMatches()
       toast(`${results.length} matches found`, 'success')
       setMatches(results)
     } catch (e) { toast(e.message, 'error') }

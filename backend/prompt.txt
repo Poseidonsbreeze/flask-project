@@ -1,0 +1,19 @@
+http://www.google.com/cookies.html
+International Student
+
+
+Description
+http://www.google.com/cookies.html
+
+Eligibility
+See application page for eligibility details.
+
+Details
+Country
+Global
+Deadline
+Invalid Date (NaN days)
+Link
+View site
+
+this are the kind of scrapes im getting and some outputs are showing nan. i'd rather the provision fro those are removed than for nand to be shown fix the scrapes...make thme more accurate and let the links point to the exact page on the site where the scholarship lives

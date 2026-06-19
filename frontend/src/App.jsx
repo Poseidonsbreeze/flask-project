@@ -4,6 +4,7 @@ import { useToast } from './hooks/useToast'
 import AuthPage from './pages/AuthPage'
 import Dashboard from './pages/Dashboard'
 import ScholarshipsPage from './pages/ScholarshipsPage'
+import ArchivedPage from './pages/ArchivedPage'
 import MatchesPage from './pages/MatchesPage'
 import ProfilePage from './pages/ProfilePage'
 import Sidebar from './components/Sidebar'
@@ -38,6 +39,7 @@ export default function App() {
   const PAGE_TITLES = {
     dashboard:    'Dashboard',
     scholarships: 'Scholarships',
+    archived:     'Archived Scholarships',
     matches:      'My Matches',
     profile:      'Profile',
   }
@@ -63,6 +65,7 @@ export default function App() {
         <main className="app-main" style={{ flex: 1, padding: 28, maxWidth: 1200 }}>
           {page === 'dashboard'    && <Dashboard    user={user}  onNav={setPage} toast={toast} />}
           {page === 'scholarships' && <ScholarshipsPage          toast={toast} />}
+          {page === 'archived'     && <ArchivedPage             toast={toast} />}
           {page === 'matches'      && <MatchesPage               toast={toast} />}
           {page === 'profile'      && <ProfilePage  user={user}  setUser={setUser} toast={toast} />}
         </main>

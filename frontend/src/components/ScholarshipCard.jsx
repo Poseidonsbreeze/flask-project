@@ -1,7 +1,7 @@
-import { MapPin, GraduationCap, Calendar, ExternalLink } from 'lucide-react'
+import { MapPin, GraduationCap, Calendar, ExternalLink, Archive, Trash2 } from 'lucide-react'
 
-function daysUntil(d) { return d ? Math.ceil((new Date(d) - new Date()) / 86400000) : null }
-function fmtDate(d)   { return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBC' }
+function daysUntil(d) { if (!d) return null; const t = new Date(d); return isNaN(t) ? null : Math.ceil((t - new Date()) / 86400000) }
+function fmtDate(d)   { if (!d) return 'TBC'; const t = new Date(d); return isNaN(t) ? 'TBC' : t.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) }
 
 export function ScoreRing({ score }) {
   const s = Math.round(score)
@@ -23,7 +23,7 @@ export function ScoreRing({ score }) {
   )
 }
 
-export default function ScholarshipCard({ sch, score, onView, index = 0 }) {
+export default function ScholarshipCard({ sch, score, onView, onArchive, onDelete, onRestore, isArchived = false, index = 0 }) {
   const days   = daysUntil(sch.deadline)
   const urgent = days !== null && days <= 30
 
@@ -64,12 +64,32 @@ export default function ScholarshipCard({ sch, score, onView, index = 0 }) {
           </span>
           {urgent && <span style={S.urgentBadge}>Urgent</span>}
         </div>
-        {sch.application_link && (
-          <a href={sch.application_link} target="_blank" rel="noreferrer"
-            onClick={e => e.stopPropagation()} style={S.applyLink}>
-            Apply <ExternalLink size={11} />
-          </a>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {sch.application_link && (
+            <a href={sch.application_link} target="_blank" rel="noreferrer"
+              onClick={e => e.stopPropagation()} style={S.applyLink}>
+              Apply <ExternalLink size={11} />
+            </a>
+          )}
+          {isArchived && onRestore && (
+            <button onClick={e => { e.stopPropagation(); onRestore(sch.id); }} 
+              style={S.actionBtn} title="Restore scholarship">
+              ↩ Restore
+            </button>
+          )}
+          {!isArchived && onArchive && (
+            <button onClick={e => { e.stopPropagation(); onArchive(sch.id); }} 
+              style={{...S.actionBtn, background: 'rgba(100,116,139,.1)'}} title="Archive scholarship">
+              <Archive size={12} /> Archive
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={e => { e.stopPropagation(); onDelete(sch.id); }} 
+              style={{...S.actionBtn, background: 'rgba(248,113,113,.1)'}} title="Delete scholarship">
+              <Trash2 size={12} /> Delete
+            </button>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -103,5 +123,11 @@ const S = {
     display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontWeight: 600,
     color: 'var(--green)', background: 'var(--green-dim)', border: '1px solid rgba(52,211,153,.2)',
     padding: '5px 12px', borderRadius: 8, transition: 'all var(--ease)',
+  },
+  actionBtn: {
+    display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600,
+    color: 'var(--ink-2)', background: 'rgba(100,116,139,.08)', border: '1px solid rgba(100,116,139,.15)',
+    padding: '4px 10px', borderRadius: 6, cursor: 'pointer', transition: 'all var(--ease)',
+    '&:hover': { opacity: 0.8 },
   },
 }

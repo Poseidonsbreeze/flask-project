@@ -1,8 +1,8 @@
 import { X, MapPin, GraduationCap, Calendar, Link2, FileText, ExternalLink } from 'lucide-react'
 import { ScoreRing } from './ScholarshipCard'
 
-function fmtDate(d) { return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : 'TBC' }
-function daysUntil(d) { return d ? Math.ceil((new Date(d) - new Date()) / 86400000) : null }
+function fmtDate(d) { if (!d) return 'TBC'; const t = new Date(d); return isNaN(t) ? 'TBC' : t.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) }
+function daysUntil(d) { if (!d) return null; const t = new Date(d); return isNaN(t) ? null : Math.ceil((t - new Date()) / 86400000) }
 
 export default function ScholarshipModal({ sch, score, onClose }) {
   if (!sch) return null
@@ -61,7 +61,7 @@ export default function ScholarshipModal({ sch, score, onClose }) {
                 <div key={label} style={S.detailRow}>
                   <span style={S.detailKey}>{label}</span>
                   {isLink
-                    ? <a href={val} target="_blank" rel="noreferrer" style={{ ...S.detailVal, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4 }}><Link2 size={12} />View site</a>
+                    ? <a href={val} target="_blank" rel="noreferrer" title={val} style={{ ...S.detailVal, color: 'var(--green)', display: 'flex', alignItems: 'center', gap: 4, fontSize: 11 }}><Link2 size={12} />{val.length > 45 ? val.slice(0, 42) + '...' : val}</a>
                     : <span style={{ ...S.detailVal, color: urgent ? 'var(--red)' : undefined }}>{val}</span>
                   }
                 </div>

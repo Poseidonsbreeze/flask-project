@@ -6,7 +6,6 @@ def start_scheduler(app):
 
     scheduler = BackgroundScheduler()
 
-    # every 6 hours
     scheduler.add_job(
         func=lambda: run_with_context(app),
         trigger="interval",
@@ -17,5 +16,8 @@ def start_scheduler(app):
 
 
 def run_with_context(app):
-    with app.app_context():
-        run_all_scrapers()
+    try:
+        with app.app_context():
+            run_all_scrapers()
+    except Exception as e:
+        print(f"[SCHEDULER] Error during scheduled scrape: {str(e)}")

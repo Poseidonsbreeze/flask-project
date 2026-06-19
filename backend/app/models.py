@@ -21,6 +21,8 @@ class Scholarship(db.Model):
     description = db.Column(db.Text)
     deadline = db.Column(db.Date)
     application_link = db.Column(db.Text)
+    is_archived = db.Column(db.Boolean, default=False)
+    deleted_at = db.Column(db.DateTime, nullable=True)
 
 
 class Match(db.Model):
