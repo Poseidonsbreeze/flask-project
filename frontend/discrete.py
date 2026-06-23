@@ -1,4 +1,3 @@
-# num_students = int(input("Enter number of students:"))
 
 # for i in range(num_students):
 #     name = input("Enter student name:")
