@@ -1,4 +1,5 @@
 import atexit
+import os
 from apscheduler.schedulers.background import BackgroundScheduler
 from app.scraping.scraper_engine import run_all_scrapers
 
