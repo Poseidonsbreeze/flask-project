@@ -1,4 +1,3 @@
-#     scores = []
 
 #     for j in range(3):
 #         score = int(input(f"Enter score for subject {j+1}:"))
