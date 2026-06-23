@@ -1,4 +1,3 @@
-#         print(i,j)
 
 
 # num_students = int(input("Enter number of students:"))
