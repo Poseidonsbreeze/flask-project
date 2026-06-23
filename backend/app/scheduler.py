@@ -5,6 +5,7 @@ from app.scraping.scraper_engine import run_all_scrapers
 
 
 def start_scheduler(app):
+    # Avoid double-start when Flask debug mode uses the reloader
 
     scheduler = BackgroundScheduler()
 
