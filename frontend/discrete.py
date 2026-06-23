@@ -1,4 +1,3 @@
-# print(f"Student: {name}, Subject {j+1} Score: {score}")
 
 # def fib(n):
 #     if n <= 1:
