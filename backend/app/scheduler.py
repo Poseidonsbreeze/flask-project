@@ -22,3 +22,4 @@ def start_scheduler(app):
 
 def run_with_context(app):
     with app.app_context():
+        run_all_scrapers()
