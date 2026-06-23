@@ -16,7 +16,6 @@ def start_scheduler(app):
             hours=6
         )
 
-        trigger="interval",
         hours=6
     )
 
