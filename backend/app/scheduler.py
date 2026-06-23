@@ -9,7 +9,6 @@ def start_scheduler(app):
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
         scheduler = BackgroundScheduler()
 
-    scheduler = BackgroundScheduler()
 
     # every 6 hours
     scheduler.add_job(
