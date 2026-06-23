@@ -1,4 +1,3 @@
-#     name = input("Enter student name:")
     
 #     scores = []
 
