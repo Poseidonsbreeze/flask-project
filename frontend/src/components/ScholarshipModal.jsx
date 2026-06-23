@@ -33,7 +33,6 @@ export default function ScholarshipModal({ sch, score, onClose }) {
               <span style={{ fontSize: 13, fontWeight: 800, color: score >= 0.8 ? 'var(--green)' : score >= 0.6 ? 'var(--gold)' : 'var(--blue)' }}>{Math.round(score * 100)}%</span>
             </div>
             <div style={{ height: 5, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
-                background: score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--gold)' : 'var(--blue)',
                 transition: 'width .6s ease' }} />
             </div>
           </div>
