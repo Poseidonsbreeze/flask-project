@@ -1,5 +1,4 @@
 future==1.0.0
-gevent==25.9.1
 gevent-websocket==0.10.1
 greenlet==3.2.4
 h11==0.16.0
