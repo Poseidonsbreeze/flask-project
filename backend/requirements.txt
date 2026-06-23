@@ -10,7 +10,6 @@ requests==2.32.5
 beautifulsoup4==4.13.5
 playwright==1.51.0
 scikit-learn==1.7.2
-tzdata==2025.2
 urllib3==2.5.0
 uuid==1.30
 webencodings==0.5.1
