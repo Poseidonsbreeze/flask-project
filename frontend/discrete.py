@@ -1,4 +1,3 @@
-#         score = int(input(f"Enter score for subject {j+1}:"))
 #         scores.append(score)
 
 # print(f"Student: {name}, Subject {j+1} Score: {score}")
