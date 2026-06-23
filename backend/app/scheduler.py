@@ -10,6 +10,7 @@ def start_scheduler(app):
         scheduler = BackgroundScheduler()
 
         # every 6 hours
+        scheduler.add_job(
 
     # every 6 hours
     scheduler.add_job(
