@@ -17,6 +17,7 @@ def start_scheduler(app):
         )
 
         scheduler.start()
+        atexit.register(lambda: scheduler.shutdown(wait=False))
 
 
 def run_with_context(app):
