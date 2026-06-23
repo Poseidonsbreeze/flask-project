@@ -1,4 +1,3 @@
-#         scores.append(score)
 
 # print(f"Student: {name}, Subject {j+1} Score: {score}")
 
