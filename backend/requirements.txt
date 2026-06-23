@@ -1,5 +1,4 @@
 lat==0.0.2
-log-symbols==0.0.14
 matplotlib==3.10.6
 mnemonic==0.21
 mysql-connector-python==9.4.0
