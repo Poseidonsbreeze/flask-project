@@ -16,7 +16,6 @@ def start_scheduler(app):
             hours=6
         )
 
-        func=lambda: run_with_context(app),
         trigger="interval",
         hours=6
     )
