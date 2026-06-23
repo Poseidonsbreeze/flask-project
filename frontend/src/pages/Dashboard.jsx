@@ -154,6 +154,7 @@ export default function Dashboard({ user, onNav, toast }) {
           },
           {
             label: "Top Score",
+            val: topM[0] ? `${Math.round(topM[0].score * 100)}%` : "—",
             Icon: TrendingUp,
             color: "var(--gold)",
             page: "matches",
