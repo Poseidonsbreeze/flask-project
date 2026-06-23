@@ -16,7 +16,6 @@ def start_scheduler(app):
             hours=6
         )
 
-    scheduler.start()
 
 
 def run_with_context(app):
