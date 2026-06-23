@@ -4,6 +4,7 @@ function daysUntil(d) { return d ? Math.ceil((new Date(d) - new Date()) / 864000
 function fmtDate(d)   { return d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'TBC' }
 
 export function ScoreRing({ score }) {
+  const s = Math.round(score <= 1 ? score * 100 : score)
   const r = 22, circ = 2 * Math.PI * r
   const color = s >= 80 ? 'var(--green)' : s >= 60 ? 'var(--gold)' : s >= 40 ? 'var(--blue)' : 'var(--ink-3)'
   return (
