@@ -211,6 +211,7 @@ export default function Dashboard({ user, onNav, toast }) {
                   style={{
                     ...S.score,
                     color:
+                      m.score >= 0.8
                         ? "var(--green)"
                         : m.score >= 60
                           ? "var(--gold)"
