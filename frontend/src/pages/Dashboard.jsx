@@ -213,6 +213,7 @@ export default function Dashboard({ user, onNav, toast }) {
                     color:
                       m.score >= 0.8
                         ? "var(--green)"
+                        : m.score >= 0.6
                           ? "var(--gold)"
                           : "var(--blue)",
                   }}
