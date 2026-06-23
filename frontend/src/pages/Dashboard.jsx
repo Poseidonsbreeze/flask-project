@@ -218,7 +218,6 @@ export default function Dashboard({ user, onNav, toast }) {
                           : "var(--blue)",
                   }}
                 >
-                  {Math.round(m.score)}%
                 </span>
               </div>
             ))
