@@ -34,6 +34,7 @@ export default function ScholarshipModal({ sch, score, onClose }) {
             </div>
             <div style={{ height: 5, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${score * 100}%`, borderRadius: 99,
+                background: score >= 0.8 ? 'var(--green)' : score >= 0.6 ? 'var(--gold)' : 'var(--blue)',
                 transition: 'width .6s ease' }} />
             </div>
           </div>
