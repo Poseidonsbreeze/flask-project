@@ -30,7 +30,6 @@ export default function ScholarshipModal({ sch, score, onClose }) {
           <div style={S.scoreBar}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 7 }}>
               <span style={{ fontSize: 11.5, color: 'var(--ink-2)', fontWeight: 500 }}>Match score</span>
-              <span style={{ fontSize: 13, fontWeight: 800, color: score >= 80 ? 'var(--green)' : score >= 60 ? 'var(--gold)' : 'var(--blue)' }}>{Math.round(score)}%</span>
             </div>
             <div style={{ height: 5, background: 'var(--border)', borderRadius: 99, overflow: 'hidden' }}>
               <div style={{ height: '100%', width: `${score}%`, borderRadius: 99,
