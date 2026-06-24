@@ -1,5 +1,5 @@
 from flask import Blueprint, request, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 from app.extensions import db
 from app.models import Scholarship
 
@@ -18,6 +18,20 @@ def serialize_scholarship(s):
         "deadline": s.deadline.isoformat() if s.deadline else None,
         "application_link": s.application_link,
         "is_archived": s.is_archived,
+    }
+
+
+def serialize_calendar_event(s):
+    return {
+        "id": s.id,
+        "title": s.title,
+        "provider": s.provider,
+        "country": s.country,
+        "degree_level": s.degree_level,
+        "deadline": s.deadline.isoformat() if s.deadline else None,
+        "application_link": s.application_link,
+        "days_until": (s.deadline - datetime.utcnow().date()).days if s.deadline else None,
+        "is_urgent": s.deadline and (s.deadline - datetime.utcnow().date()).days <= 30,
     }
 
 
@@ -100,3 +114,48 @@ def delete_scholarship(id):
     s.deleted_at = datetime.utcnow()
     db.session.commit()
     return jsonify({"message": "Scholarship deleted successfully"}), 200
+
+
+# CALENDAR VIEW - Scholarships with deadlines
+@scholarship_bp.route("/calendar", methods=["GET"])
+def get_calendar():
+    scholarships = Scholarship.query.filter(
+        Scholarship.is_archived == False,
+        Scholarship.deleted_at == None,
+        Scholarship.deadline != None
+    ).order_by(Scholarship.deadline.asc()).all()
+
+    now = datetime.utcnow().date()
+    upcoming = []
+    past = []
+
+    for s in scholarships:
+        event = serialize_calendar_event(s)
+        if s.deadline >= now:
+            upcoming.append(event)
+        else:
+            past.append(event)
+
+    return jsonify({
+        "upcoming": upcoming,
+        "past": past,
+        "total_upcoming": len(upcoming),
+        "total_past": len(past)
+    }), 200
+
+
+# UPCOMING DEADLINES (next 30 days)
+@scholarship_bp.route("/deadlines/upcoming", methods=["GET"])
+def get_upcoming_deadlines():
+    days = request.args.get('days', 30, type=int)
+    cutoff = datetime.utcnow().date() + timedelta(days=days)
+
+    scholarships = Scholarship.query.filter(
+        Scholarship.is_archived == False,
+        Scholarship.deleted_at == None,
+        Scholarship.deadline != None,
+        Scholarship.deadline <= cutoff,
+        Scholarship.deadline >= datetime.utcnow().date()
+    ).order_by(Scholarship.deadline.asc()).all()
+
+    return jsonify([serialize_calendar_event(s) for s in scholarships]), 200

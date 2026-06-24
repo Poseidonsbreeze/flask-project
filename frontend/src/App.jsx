@@ -7,6 +7,7 @@ import ScholarshipsPage from './pages/ScholarshipsPage'
 import ArchivedPage from './pages/ArchivedPage'
 import MatchesPage from './pages/MatchesPage'
 import ProfilePage from './pages/ProfilePage'
+import CalendarView from './components/CalendarView'
 import Sidebar from './components/Sidebar'
 import Toasts from './components/Toasts'
 
@@ -41,6 +42,7 @@ export default function App() {
     scholarships: 'Scholarships',
     archived:     'Archived Scholarships',
     matches:      'My Matches',
+    calendar:     'Deadline Calendar',
     profile:      'Profile',
   }
 
@@ -67,6 +69,7 @@ export default function App() {
           {page === 'scholarships' && <ScholarshipsPage          toast={toast} />}
           {page === 'archived'     && <ArchivedPage             toast={toast} />}
           {page === 'matches'      && <MatchesPage               toast={toast} />}
+          {page === 'calendar'     && <CalendarView />}
           {page === 'profile'      && <ProfilePage  user={user}  setUser={setUser} toast={toast} />}
         </main>
       </div>

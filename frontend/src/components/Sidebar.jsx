@@ -1,10 +1,11 @@
-import { LayoutDashboard, GraduationCap, Sparkles, UserCircle, LogOut, BookOpen, Archive, ChevronRight } from 'lucide-react'
+import { LayoutDashboard, GraduationCap, Sparkles, UserCircle, LogOut, BookOpen, Archive, ChevronRight, Calendar as CalendarIcon } from 'lucide-react'
 
 const NAV = [
   { id: 'dashboard',    label: 'Dashboard',    Icon: LayoutDashboard },
   { id: 'scholarships', label: 'Scholarships', Icon: GraduationCap },
   { id: 'archived',     label: 'Archived',     Icon: Archive },
   { id: 'matches',      label: 'My Matches',   Icon: Sparkles },
+  { id: 'calendar',     label: 'Calendar',    Icon: CalendarIcon },
   { id: 'profile',      label: 'Profile',      Icon: UserCircle },
 ]
 

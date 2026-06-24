@@ -2,6 +2,8 @@ import re
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin, urlparse
+from datetime import datetime
+import xml.etree.ElementTree as ET
 from app.extensions import db
 from app.models import Scholarship
 
@@ -11,17 +13,19 @@ HEADERS = {
     "Accept-Language": "en-US,en;q=0.5"
 }
 
-REQUEST_TIMEOUT = 15
+REQUEST_TIMEOUT = 20
+DETAIL_TIMEOUT = 12
 
 JUNK_KEYWORDS = [
     "clock", "alarm", "menu", "navigation", "login", "register",
     "home", "list item", "sidebar", "footer", "widget", "search",
-    "category", "tag", "pagination", "sort", "filter", "advertisement"
+    "category", "tag", "pagination", "sort", "filter", "advertisement",
+    "skip to content", "loading", "cookie", "share on"
 ]
 
 SKIP_URL_PATTERNS = [
     "/login", "/signin", "/register", "/signup",
-    "/category/", "/tag/", "/search", "/page/",
+    "/tag/", "/search", "/page/",
     "/search-results", "?", "#"
 ]
 
@@ -124,21 +128,192 @@ def is_url_like(text):
     return bool(URL_RE.match(text.strip()))
 
 
-def create_scholarship(title, provider, link, description, country="Global"):
+PILL_PATTERNS = re.compile(
+    r'(Master|PhD|Doctoral|Bachelor|Undergraduate|Graduate|Postdoc|'
+    r'Postdoctoral|Fellowship|Masters|Bachelors|M\.Sc|M\.A\.|Ph\.D)',
+    re.IGNORECASE
+)
+
+
+def parse_deadline(text):
+    if not text:
+        return None
+    text = text.strip()
+    patterns = [
+        r'(\d{1,2}\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{4})',
+        r'(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})',
+        r'(\d{4}[-/]\d{1,2}[-/]\d{1,2})',
+        r'((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\s+\d{1,2},?\s+\d{4})',
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, text, re.IGNORECASE)
+        if match:
+            date_str = match.group(1).strip()
+            for fmt in ['%d %B %Y', '%d %b %Y', '%d-%m-%Y', '%d/%m/%Y', '%Y-%m-%d', '%B %d, %Y', '%b %d, %Y']:
+                try:
+                    return datetime.strptime(date_str, fmt).date()
+                except ValueError:
+                    continue
+    return None
+
+
+def extract_detail_fields(detail_soup, base_url):
+    result = {
+        'deadline': None,
+        'degree_level': None,
+        'eligibility': None,
+        'application_link': base_url,
+        'description': None
+    }
+
+    full_text = detail_soup.get_text(" ", strip=True)
+    result['deadline'] = parse_deadline(full_text)
+
+    degree_match = re.search(
+        r'(degree level|level of study|study level)[:\s]+([A-Za-z\s/]+?)(?:\.|$|\n)',
+        full_text, re.IGNORECASE
+    )
+    if degree_match:
+        result['degree_level'] = degree_match.group(2).strip()[:200]
+
+    eligibility_match = re.search(
+        r'(eligibility|who can apply|requirements)[:\s]+([A-Za-z\s,;.\-()]+?)(?:\.(?:\s|$)|$)',
+        full_text, re.IGNORECASE
+    )
+    if eligibility_match:
+        result['eligibility'] = eligibility_match.group(2).strip()[:300]
+
+    meta_desc = detail_soup.find("meta", {"name": "description"})
+    if meta_desc and meta_desc.get("content"):
+        result['description'] = meta_desc.get("content").strip()[:500]
+
+    for sel in [
+        'a[href*="apply"]', 'a[href*="application"]', 'a[href*="register"]',
+        '.apply-btn a', '.btn-apply a', 'a.apply-link'
+    ]:
+        try:
+            link = detail_soup.select_one(sel)
+            if link and link.get('href'):
+                result['application_link'] = urljoin(base_url, link['href'])
+                break
+        except Exception:
+            continue
+
+    return result
+
+
+def create_scholarship(title, provider, link, description, country="Global", deadline=None, degree_level=None, eligibility=None, application_link=None):
     if is_url_like(description):
         description = title
-    scholarship = Scholarship(
-        title=title,
-        provider=provider,
-        country=country,
-        application_link=link,
-        description=description,
-        deadline=None
+    s = Scholarship(
+        title=title, provider=provider, country=country,
+        application_link=application_link or link,
+        description=description, deadline=deadline,
+        degree_level=degree_level, eligibility=eligibility
     )
-    db.session.add(scholarship)
+    db.session.add(s)
 
 
-# 1. OPPORTUNITY DESK
+def parse_rss_feed(feed_url, provider):
+    """Generic RSS feed parser for WordPress-based scholarship sites."""
+    stats = ScraperStats(provider)
+    added = 0
+    try:
+        res = requests.get(feed_url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
+        res.raise_for_status()
+        root = ET.fromstring(res.content)
+        ns = {'content': 'http://purl.org/rss/1.0/modules/content/'}
+
+        channel = root.find('channel')
+        items = channel.findall('item') if channel is not None else root.findall('.//item')
+
+        stats.cards_found = len(items)
+
+        for item in items:
+            title_el = item.find('title')
+            link_el = item.find('link')
+            if title_el is None or link_el is None:
+                stats.invalid += 1
+                continue
+
+            title = title_el.text.strip() if title_el.text else ''
+            href = link_el.text.strip() if link_el.text else ''
+
+            valid_title, reason = is_valid_title(title)
+            if not valid_title:
+                stats.invalid += 1
+                stats.log_skipped(title, href, reason)
+                continue
+
+            valid_url, resolved = is_valid_url(href, href)
+            if not valid_url:
+                stats.invalid += 1
+                stats.log_skipped(title, href, resolved)
+                continue
+
+            is_dup, dup_reason = check_duplicate(resolved, title)
+            if is_dup:
+                stats.duplicates += 1
+                stats.log_skipped(title, resolved, dup_reason)
+                continue
+
+            description = ''
+            desc_el = item.find('description')
+            if desc_el is not None and desc_el.text:
+                desc_soup = BeautifulSoup(desc_el.text, 'html.parser')
+                description = desc_soup.get_text(' ', strip=True)[:500]
+
+            content_el = item.find('content:encoded', ns)
+            full_text = ''
+            if content_el is not None and content_el.text:
+                content_soup = BeautifulSoup(content_el.text, 'html.parser')
+                full_text = content_soup.get_text(' ', strip=True)
+            elif description:
+                full_text = description
+
+            deadline = parse_deadline(full_text) if full_text else None
+            country = 'Global'
+            categories = item.findall('category')
+            if categories:
+                cat_texts = [c.text for c in categories if c.text]
+                for c in cat_texts:
+                    if c.lower() in ['germany', 'usa', 'uk', 'canada', 'australia', 'japan', 'china', 'france', 'sweden', 'netherlands', 'switzerland', 'south korea']:
+                        country = c.title()
+                        break
+
+            degree_level = None
+            degree_match = PILL_PATTERNS.search(title + ' ' + full_text)
+            if degree_match:
+                degree_level = degree_match.group(1)
+
+            create_scholarship(title, provider, resolved, description, country, deadline, degree_level)
+            added += 1
+            stats.added += 1
+            stats.log_added(title, resolved)
+
+        db.session.commit()
+        stats.print_summary()
+        return added
+    except requests.RequestException as e:
+        stats.errors += 1
+        print(f"[ERROR] RSS feed {provider}: {e}")
+        stats.print_summary()
+        return 0
+    except ET.ParseError as e:
+        stats.errors += 1
+        print(f"[ERROR] XML parse for {provider}: {e}")
+        stats.print_summary()
+        return 0
+    except Exception as e:
+        stats.errors += 1
+        print(f"[ERROR] {provider}: {e}")
+        db.session.rollback()
+        stats.print_summary()
+        return 0
+
+
+# --- SCRAPERS ---
+
 def scrape_opportunity_desk():
     provider = "Scholarship Positions"
     url = "https://scholarship-positions.com/category/scholarships/"
@@ -148,301 +323,70 @@ def scrape_opportunity_desk():
     try:
         res = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
         soup = BeautifulSoup(res.text, "html.parser")
-        posts = soup.find_all("article")
 
-        for post in posts:
+        entries = (
+            soup.find_all("article")
+            or soup.find_all("div", class_=lambda c: c and ("post" in c.lower() or "entry" in c.lower()))
+            or soup.find_all("li", class_=lambda c: c and "post" in c.lower())
+        )
+
+        for post in entries:
             stats.cards_found += 1
-            title_tag = post.find("h2")
+            title_tag = post.find("h2") or post.find("h3") or post.find("a", class_=lambda c: c and "title" in c.lower())
             if not title_tag:
                 stats.invalid += 1
                 continue
-            title = title_tag.text.strip()
 
-            is_valid, reason = is_valid_title(title)
-            if not is_valid:
+            title = title_tag.get_text(strip=True)
+            valid_title, reason = is_valid_title(title)
+            if not valid_title:
                 stats.invalid += 1
-                stats.log_skipped(title, "N/A", reason)
                 continue
 
-            link_tag = post.find("a")
+            link_tag = post.find("a") if title_tag.name != 'a' else title_tag
             if not link_tag:
                 stats.invalid += 1
-                stats.log_skipped(title, "N/A", "No link found")
                 continue
-
             href = link_tag.get("href")
-            is_valid_url_result, resolved_link = is_valid_url(href, url)
-            if not is_valid_url_result:
+            valid_url, resolved = is_valid_url(href, url)
+            if not valid_url:
                 stats.invalid += 1
-                stats.log_skipped(title, href or "N/A", resolved_link)
                 continue
 
-            is_duplicate, dup_reason = check_duplicate(resolved_link, title)
-            if is_duplicate:
+            is_dup, reason = check_duplicate(resolved, title)
+            if is_dup:
                 stats.duplicates += 1
-                stats.log_skipped(title, resolved_link, dup_reason)
                 continue
 
-            stats.valid_items += 1
             description = extract_description(post, title)
-            create_scholarship(title, provider, resolved_link, description)
+            create_scholarship(title, provider, resolved, description)
             added += 1
             stats.added += 1
-            stats.log_added(title, resolved_link)
+            stats.log_added(title, resolved)
 
         db.session.commit()
         stats.print_summary()
         return added
-
     except requests.RequestException as e:
         stats.errors += 1
-        print(f"[ERROR] {provider}: Network error - {str(e)}")
+        print(f"[ERROR] {provider}: {e}")
         stats.print_summary()
         return 0
     except Exception as e:
         stats.errors += 1
-        print(f"[ERROR] {provider}: {str(e)}")
+        print(f"[ERROR] {provider}: {e}")
         db.session.rollback()
         stats.print_summary()
         return 0
 
 
-# 2. SCHOLARS4DEV
 def scrape_scholars4dev():
-    url = "https://www.scholars4dev.com/category/scholarships/"
-    provider = "Scholars4Dev"
-    base_url = "https://www.scholars4dev.com"
-    stats = ScraperStats(provider)
-    added = 0
-
-    try:
-        res = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-        soup = BeautifulSoup(res.text, "html.parser")
-        articles = soup.find_all("article") or soup.find_all("div", class_="post")
-
-        for article in articles:
-            stats.cards_found += 1
-            link_tag = article.find("a")
-            if not link_tag:
-                stats.invalid += 1
-                continue
-
-            title = link_tag.text.strip()
-            href = link_tag.get("href")
-
-            is_valid, reason = is_valid_title(title)
-            if not is_valid:
-                stats.invalid += 1
-                stats.log_skipped(title, href or "N/A", reason)
-                continue
-
-            is_valid_url_result, resolved_link = is_valid_url(href, base_url)
-            if not is_valid_url_result:
-                stats.invalid += 1
-                stats.log_skipped(title, href or "N/A", resolved_link)
-                continue
-
-            is_duplicate, dup_reason = check_duplicate(resolved_link, title)
-            if is_duplicate:
-                stats.duplicates += 1
-                stats.log_skipped(title, resolved_link, dup_reason)
-                continue
-
-            stats.valid_items += 1
-            description = extract_description(article, title)
-            create_scholarship(title, provider, resolved_link, description)
-            added += 1
-            stats.added += 1
-            stats.log_added(title, resolved_link)
-
-        db.session.commit()
-        stats.print_summary()
-        return added
-
-    except requests.RequestException as e:
-        stats.errors += 1
-        print(f"[ERROR] {provider}: Network error - {str(e)}")
-        stats.print_summary()
-        return 0
-    except Exception as e:
-        stats.errors += 1
-        print(f"[ERROR] {provider}: {str(e)}")
-        db.session.rollback()
-        stats.print_summary()
-        return 0
+    return parse_rss_feed("https://www.scholars4dev.com/feed/", "Scholars4Dev")
 
 
-# 3. DAAD
-def scrape_daad():
-    provider = "DAAD"
-    url = "https://www.daad.de/en/study-and-research-in-germany/scholarships/"
-    base_url = "https://www.daad.de"
-    stats = ScraperStats(provider)
-    added = 0
-    valid_extracted = 0
-    skipped = 0
-    total_cards_found = 0
-
-    def is_valid_daad_title(t):
-        t_norm = (t or "").strip()
-        if not t_norm:
-            return False
-        t_lower = t_norm.lower()
-        if t_lower in {"home", "daad"}:
-            return False
-        return True
-
-    def extract_country_from_text(text):
-        if not text:
-            return None
-        lowered = text.lower()
-        for marker in ["germany", "deutschland", "usa", "canada", "uk", "united kingdom", "australia"]:
-            if marker in lowered:
-                return "Germany" if "germany" in marker or "deutschland" in marker else marker.title()
-        return None
-
-    def parse_listing_page(soup):
-        nonlocal total_cards_found, valid_extracted, skipped, added
-
-        containers = (
-            soup.find_all("article")
-            or soup.find_all("div", class_=lambda c: c and ("card" in c or "teaser" in c or "listing" in c or "result" in c))
-            or soup.find_all("section")
-        )
-        if not containers:
-            containers = [soup]
-
-        seen_titles_links = set()
-
-        for container in containers:
-            for a in container.find_all("a"):
-                title = a.get_text(strip=True)
-                href = a.get("href") or ""
-                if not title or len(title) < 2:
-                    continue
-
-                if not is_valid_daad_title(title):
-                    skipped += 1
-                    continue
-
-                resolved_try = urljoin(base_url, href) if href else ""
-                key = (" ".join(title.split()).lower(), resolved_try)
-                if key in seen_titles_links:
-                    continue
-                seen_titles_links.add(key)
-                total_cards_found += 1
-                stats.cards_found += 1
-
-                is_valid, reason = is_valid_title(title)
-                if not is_valid:
-                    skipped += 1
-                    stats.invalid += 1
-                    stats.log_skipped(title, href, reason)
-                    continue
-
-                href_norm = (href or "").strip()
-                if href_norm in {"/", "#"} or href_norm.startswith("#"):
-                    skipped += 1
-                    stats.invalid += 1
-                    stats.log_skipped(title, href, "Invalid URL pattern")
-                    continue
-
-                is_valid_url_result, resolved_link = is_valid_url(href, base_url)
-                if not is_valid_url_result:
-                    skipped += 1
-                    stats.invalid += 1
-                    stats.log_skipped(title, href, resolved_link)
-                    continue
-
-                is_duplicate, dup_reason = check_duplicate(resolved_link, title)
-                if is_duplicate:
-                    skipped += 1
-                    stats.duplicates += 1
-                    stats.log_skipped(title, resolved_link, dup_reason)
-                    continue
-
-                container_text = container.get_text(" ", strip=True)
-                country = extract_country_from_text(container_text) or "International"
-
-                description = ""
-                meta = container.find("meta", {"name": "description"})
-                if meta and meta.get("content"):
-                    description = meta.get("content").strip()
-                if not description:
-                    for p in container.find_all("p"):
-                        text = p.get_text(" ", strip=True)
-                        if text and 20 < len(text) < 600:
-                            description = text[:500]
-                            break
-                if not description:
-                    candidate_desc = extract_description(container, title)
-                    description = candidate_desc if candidate_desc and candidate_desc != title else ""
-
-                valid_extracted += 1
-                stats.valid_items += 1
-                create_scholarship(title, provider, resolved_link, description, country)
-                added += 1
-                stats.added += 1
-                stats.log_added(title, resolved_link)
-
-    try:
-        session = requests.Session()
-        next_url = url
-        seen_pages = set()
-
-        while next_url and next_url not in seen_pages:
-            seen_pages.add(next_url)
-            res = session.get(next_url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-            res.raise_for_status()
-            soup = BeautifulSoup(res.text, "html.parser")
-            parse_listing_page(soup)
-
-            next_link = None
-            for a in soup.find_all("a"):
-                text = (a.get_text(strip=True) or "").lower()
-                rel = (a.get("rel") or "").lower()
-                aria = (a.get("aria-label") or "").lower()
-                if "next" in text or rel == "next" or "next" in aria:
-                    href = a.get("href")
-                    if href:
-                        candidate = urljoin(base_url, href)
-                        if candidate and candidate != next_url:
-                            next_link = candidate
-                            break
-
-            if not next_link:
-                for a in soup.find_all("a"):
-                    href = a.get("href") or ""
-                    href_lower = href.lower()
-                    if any(pat in href_lower for pat in ["page=", "?page=", "/page/", "offset=", "start="]):
-                        candidate = urljoin(base_url, href)
-                        if candidate and candidate != next_url:
-                            next_link = candidate
-                            break
-
-            next_url = next_link
-
-        db.session.commit()
-        stats.print_summary()
-        return added
-
-    except requests.RequestException as e:
-        stats.errors += 1
-        print(f"[ERROR] {provider}: Network error - {str(e)}")
-        stats.print_summary()
-        return 0
-    except Exception as e:
-        stats.errors += 1
-        print(f"[ERROR] {provider}: {str(e)}")
-        db.session.rollback()
-        stats.print_summary()
-        return 0
-
-
-# 4. INTERNATIONAL STUDENT
 def scrape_international_student():
-    url = "https://www.internationalstudent.com/scholarships/"
     provider = "International Student"
+    url = "https://www.internationalstudent.com/scholarships/"
     base_url = "https://www.internationalstudent.com"
     stats = ScraperStats(provider)
     added = 0
@@ -451,281 +395,69 @@ def scrape_international_student():
         res = requests.get(url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
         soup = BeautifulSoup(res.text, "html.parser")
 
-        main_content = soup.find("article") or soup.find("main") or soup.find("div", class_="container")
-        if not main_content:
-            print(f"[WARNING] {provider}: Could not find main content area")
+        main = soup.find("main") or soup.find("div", class_="content") or soup.find("div", id="content")
+        if not main:
             stats.print_summary()
             return 0
 
-        for breadcrumb in main_content.find_all("ul", class_="breadcrumb"):
-            breadcrumb.decompose()
-        for nav in main_content.find_all("nav"):
-            nav.decompose()
+        entries = (
+            main.find_all("article")
+            or main.find_all("div", class_=lambda c: c and ("result" in c.lower() or "listing" in c.lower() or "item" in c.lower()))
+            or main.find_all("tr")
+        )
 
-        articles = main_content.find_all("article")
-        if not articles:
-            articles = main_content.find_all("div", class_=lambda c: c and ("post" in c.lower() or "entry" in c.lower() or "item" in c.lower()))
-        if not articles:
-            articles = [main_content]
-
-        for article in articles:
-            link_tag = article.find("a")
+        for entry in entries:
+            link_tag = entry.find("a")
             if not link_tag:
                 continue
-
-            title = link_tag.text.strip()
+            title = link_tag.get_text(strip=True)
             href = link_tag.get("href", "")
-
-            if not title or len(title.strip()) < 5:
-                stats.invalid += 1
+            if not title or not href:
                 continue
 
-            is_valid, reason = is_valid_title(title)
-            if not is_valid:
+            valid_title, reason = is_valid_title(title)
+            if not valid_title:
                 stats.invalid += 1
-                stats.log_skipped(title, href or "N/A", reason)
                 continue
-
-            is_valid_url_result, resolved_link = is_valid_url(href, base_url)
-            if not is_valid_url_result:
+            valid_url, resolved = is_valid_url(href, base_url)
+            if not valid_url:
                 stats.invalid += 1
-                stats.log_skipped(title, href or "N/A", resolved_link)
+                stats.log_skipped(title, href, resolved)
                 continue
-
-            is_duplicate, dup_reason = check_duplicate(resolved_link, title)
-            if is_duplicate:
+            is_dup, reason = check_duplicate(resolved, title)
+            if is_dup:
                 stats.duplicates += 1
-                stats.log_skipped(title, resolved_link, dup_reason)
                 continue
 
-            description = extract_description(article, title)
-            create_scholarship(title, provider, resolved_link, description)
+            description = extract_description(entry, title)
+            create_scholarship(title, provider, resolved, description)
             added += 1
             stats.added += 1
-            stats.log_added(title, resolved_link)
+            stats.log_added(title, resolved)
 
         db.session.commit()
         stats.print_summary()
         return added
-
     except requests.RequestException as e:
         stats.errors += 1
-        print(f"[ERROR] {provider}: Network error - {str(e)}")
+        print(f"[ERROR] {provider}: {e}")
         stats.print_summary()
         return 0
     except Exception as e:
         stats.errors += 1
-        print(f"[ERROR] {provider}: {str(e)}")
+        print(f"[ERROR] {provider}: {e}")
         db.session.rollback()
         stats.print_summary()
         return 0
 
 
-# 5. OPPORTUNITYDESK (new scraper)
 def scrape_opportunitydesk():
-    provider = "Opportunity Desk"
-    base_url = "https://opportunitydesk.org"
-    stats = ScraperStats(provider)
-    added = 0
-
-    scholarship_categories = [
-        "/category/scholarships/undergraduate/",
-        "/category/scholarships/short-courses/",
-        "/category/scholarships/online-courses/",
-        "/category/scholarships/masters-postgraduate/",
-        "/category/scholarships/phd/",
-        "/category/scholarships/postdoctoral/",
-        "/category/scholarships/study-abroad/",
-    ]
-
-    generic_titles = ["opportunity desk"]
-
-    def is_not_generic(title):
-        t = title.strip().lower()
-        return t not in generic_titles and "opportunity desk" not in t
-
-    try:
-        session = requests.Session()
-
-        for category_path in scholarship_categories:
-            page_url = urljoin(base_url, category_path)
-            try:
-                res = session.get(page_url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-                res.raise_for_status()
-            except requests.RequestException as e:
-                stats.errors += 1
-                print(f"[WARNING] {provider}: Skipping {category_path} - {str(e)}")
-                continue
-
-            soup = BeautifulSoup(res.text, "html.parser")
-
-            articles = soup.find_all("article")
-            if not articles:
-                articles = soup.find_all("div", class_=lambda c: c and "post" in c.lower()) or []
-            if not articles:
-                articles = soup.find_all("div", class_=lambda c: c and "listing" in c.lower()) or []
-
-            for article in articles:
-                stats.cards_found += 1
-
-                title_tag = article.find("h2") or article.find("h3") or article.find("h4")
-                if not title_tag:
-                    title_tag = article.find("a")
-                if not title_tag:
-                    stats.invalid += 1
-                    continue
-
-                title = title_tag.get_text(strip=True)
-                if not title:
-                    stats.invalid += 1
-                    continue
-
-                if not is_not_generic(title):
-                    stats.invalid += 1
-                    stats.log_skipped(title, "N/A", "Generic title")
-                    continue
-
-                is_valid, reason = is_valid_title(title)
-                if not is_valid:
-                    stats.invalid += 1
-                    stats.log_skipped(title, "N/A", reason)
-                    continue
-
-                link_tag = article.find("a")
-                if not link_tag:
-                    stats.invalid += 1
-                    stats.log_skipped(title, "N/A", "No link found")
-                    continue
-
-                href = link_tag.get("href")
-                if not href or href in ["/", "#"] or href.startswith("javascript:"):
-                    stats.invalid += 1
-                    stats.log_skipped(title, href or "N/A", "Invalid link")
-                    continue
-
-                is_valid_url_result, resolved_link = is_valid_url(href, base_url)
-                if not is_valid_url_result:
-                    stats.invalid += 1
-                    stats.log_skipped(title, href or "N/A", resolved_link)
-                    continue
-
-                is_duplicate, dup_reason = check_duplicate(resolved_link, title)
-                if is_duplicate:
-                    stats.duplicates += 1
-                    stats.log_skipped(title, resolved_link, dup_reason)
-                    continue
-
-                stats.valid_items += 1
-                description = extract_description(article, title)
-                country = "Global"
-
-                cat_tag = article.find(class_=lambda c: c and ("cat" in c.lower() or "term" in c.lower() or "tag" in c.lower()))
-                if cat_tag:
-                    country = cat_tag.get_text(strip=True) or "Global"
-
-                create_scholarship(title, provider, resolved_link, description, country)
-                added += 1
-                stats.added += 1
-                stats.log_added(title, resolved_link)
-
-            pagination = soup.find("a", class_="next") or soup.find("a", string="Next") or soup.find("a", string=lambda s: s and "next" in s.lower())
-            page_num = 2
-            while pagination:
-                try:
-                    next_url = pagination.get("href") or f"{category_path}page/{page_num}/"
-                    next_url = urljoin(base_url, next_url)
-                    page_res = session.get(next_url, headers=HEADERS, timeout=REQUEST_TIMEOUT)
-                    page_res.raise_for_status()
-                except requests.RequestException as e:
-                    break
-
-                page_soup = BeautifulSoup(page_res.text, "html.parser")
-                page_articles = page_soup.find_all("article") or page_soup.find_all("div", class_=lambda c: c and ("post" in c.lower() or "listing" in c.lower())) or []
-
-                if not page_articles:
-                    break
-
-                for article in page_articles:
-                    stats.cards_found += 1
-
-                    title_tag = article.find("h2") or article.find("h3") or article.find("h4")
-                    if not title_tag:
-                        title_tag = article.find("a")
-                    if not title_tag:
-                        stats.invalid += 1
-                        continue
-
-                    title = title_tag.get_text(strip=True)
-                    if not title:
-                        stats.invalid += 1
-                        continue
-
-                    if not is_not_generic(title):
-                        stats.invalid += 1
-                        stats.log_skipped(title, "N/A", "Generic title")
-                        continue
-
-                    is_valid, reason = is_valid_title(title)
-                    if not is_valid:
-                        stats.invalid += 1
-                        stats.log_skipped(title, "N/A", reason)
-                        continue
-
-                    link_tag = article.find("a")
-                    if not link_tag:
-                        stats.invalid += 1
-                        stats.log_skipped(title, "N/A", "No link found")
-                        continue
-
-                    href = link_tag.get("href")
-                    if not href or href in ["/", "#"] or href.startswith("javascript:"):
-                        stats.invalid += 1
-                        stats.log_skipped(title, href or "N/A", "Invalid link")
-                        continue
-
-                    is_valid_url_result, resolved_link = is_valid_url(href, base_url)
-                    if not is_valid_url_result:
-                        stats.invalid += 1
-                        stats.log_skipped(title, href or "N/A", resolved_link)
-                        continue
-
-                    is_duplicate, dup_reason = check_duplicate(resolved_link, title)
-                    if is_duplicate:
-                        stats.duplicates += 1
-                        stats.log_skipped(title, resolved_link, dup_reason)
-                        continue
-
-                    stats.valid_items += 1
-                    description = extract_description(article, title)
-                    country = "Global"
-                    cat_tag = article.find(class_=lambda c: c and ("cat" in c.lower() or "term" in c.lower() or "tag" in c.lower()))
-                    if cat_tag:
-                        country = cat_tag.get_text(strip=True) or "Global"
-
-                    create_scholarship(title, provider, resolved_link, description, country)
-                    added += 1
-                    stats.added += 1
-                    stats.log_added(title, resolved_link)
-
-                page_num += 1
-                pagination = page_soup.find("a", class_="next") or page_soup.find("a", string="Next") or page_soup.find("a", string=lambda s: s and "next" in s.lower())
-                if not pagination:
-                    break
-
-        db.session.commit()
-        stats.print_summary()
-        return added
-
-    except Exception as e:
-        stats.errors += 1
-        print(f"[ERROR] {provider}: {str(e)}")
-        db.session.rollback()
-        stats.print_summary()
-        return 0
+    return parse_rss_feed("https://opportunitydesk.org/feed/", "Opportunity Desk")
 
 
-# MASTER RUNNER
 def run_all_scrapers():
+    from app.scraping.seed_data import seed_scholarships
+
     print("\n" + "="*60)
     print("SCHOLARSHIP SCRAPER - Starting run")
     print("="*60)
@@ -734,14 +466,13 @@ def run_all_scrapers():
     total += scrape_opportunity_desk()
     total += scrape_scholars4dev()
     total += scrape_international_student()
-    total += scrape_daad()
     total += scrape_opportunitydesk()
+
+    seeded = seed_scholarships()
+    total += seeded
 
     print("\n" + "="*60)
     print(f"SCRAPING COMPLETED - Total scholarships added: {total}")
     print("="*60 + "\n")
 
-    return {
-        "message": "Scraping completed",
-        "total_added": total
-    }
+    return {"message": "Scraping completed", "total_added": total}

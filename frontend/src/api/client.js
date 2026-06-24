@@ -1,5 +1,3 @@
-const BASE = 'http://localhost:5000/api'
-
 function getToken() {
   return localStorage.getItem('sf_token')
 }
@@ -9,7 +7,7 @@ async function request(path, options = {}) {
   const headers = { 'Content-Type': 'application/json', ...options.headers }
   if (token) headers['Authorization'] = `Bearer ${token}`
 
-  const res = await fetch(`${BASE}${path}`, { ...options, headers })
+  const res = await fetch(`/api${path}`, { ...options, headers })
   const data = await res.json().catch(() => ({}))
 
   if (!res.ok) throw new Error(data.error || data.message || `Error ${res.status}`)
@@ -33,4 +31,5 @@ export const api = {
   deleteScholarship: (id) => request(`/scholarships/${id}`, { method: 'DELETE' }),
   getMatches:  () => request('/match'),
   runScrape:   () => request('/scrape/run'),
+  getCalendar: () => request('/calendar'),
 }

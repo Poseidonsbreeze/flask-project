@@ -5,6 +5,9 @@ import numpy as np
 
 def compute_matches(user_profile, scholarships):
 
+    if not scholarships:
+        return []
+
     # ensure user_profile is a string
     user_profile = user_profile or ""
 
